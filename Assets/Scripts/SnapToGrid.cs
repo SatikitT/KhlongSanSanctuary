@@ -33,7 +33,6 @@ public class SnapToGrid : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDr
         screenPoint.z = 1f;
         transform.position = Camera.main.ScreenToWorldPoint(screenPoint);
 
-
     }
 
     public void OnEndDrag(PointerEventData eventData)

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -12,15 +13,18 @@ public class Building : MonoBehaviour
 
     private List<GameObject> placementBlocks = new List<GameObject>(); // Store instantiated OffsetBlocks
     private bool dragging = false;
-    private Vector3 dragOffset; // Store the offset between the clicked position and the parent position
+    private Vector3 dragOffset;
+    private Vector3 previousPosition;
     private List<GameObject> blocks;
     private GameObject clickedChild;
+    private SpriteRenderer spriteRenderer;
 
     void Start()
     {
         blocks = new List<GameObject>();
         clickedChild = null;
         topTile = GameObject.Find("Ground").GetComponent<Tilemap>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
 
         if (shapeOffsets == null || shapeOffsets.Length == 0)
         {
@@ -75,6 +79,10 @@ public class Building : MonoBehaviour
         {
             Debug.Log($"Child {hitCollider.gameObject.name} was clicked!");
 
+            previousPosition = transform.position;
+
+            spriteRenderer.color = new Color(1f, 1f, 1f, 0.5f);
+
             clickedChild = hitCollider.gameObject;
 
             dragOffset = transform.position - mousePosition;
@@ -102,7 +110,6 @@ public class Building : MonoBehaviour
 
     private void HandleMouseRelease()
     {
-
         Transform clickedBox = clickedChild.transform;
         Debug.Log($"Child {clickedChild.name} was clicked!");
 
@@ -112,11 +119,18 @@ public class Building : MonoBehaviour
         Vector3 childLocalOffset = clickedBox.localPosition;
         Vector3 parentTargetPosition = topTile.GetCellCenterLocal(childCellPosition) - childLocalOffset;
 
-        transform.position = parentTargetPosition;
-
-        Debug.Log($"Parent moved to {transform.position} to align clicked child with the grid.");
-
-        Debug.Log("Placed");
+        // Check if all child blocks align with a valid tile
+        if (CanPlaceBuilding(parentTargetPosition))
+        {
+            transform.position = parentTargetPosition;
+            Debug.Log($"Parent moved to {transform.position} to align clicked child with the grid.");
+            Debug.Log("Placed");
+        }
+        else
+        {
+            transform.position = previousPosition;
+            Debug.Log("Placement failed: One or more blocks are not on valid tiles.");
+        }
 
         // Re-enable colliders for all child blocks
         foreach (GameObject obj in blocks)
@@ -125,8 +139,28 @@ public class Building : MonoBehaviour
         }
 
         dragging = false;
+        spriteRenderer.color = new Color(1f, 1f, 1f, 1f);
+
         HidePlacementBlocks();
     }
+
+    private bool CanPlaceBuilding(Vector3 parentTargetPosition)
+    {
+        foreach (GameObject obj in blocks)
+        {
+            // Calculate the world position after moving the parent
+            Vector3 childTargetWorldPosition = parentTargetPosition + obj.transform.localPosition;
+            Vector3Int childCellPosition = topTile.LocalToCell(childTargetWorldPosition);
+
+            // Check if there is a tile at the target position
+            if (topTile.GetTile(childCellPosition) == null)
+            {
+                return false; // At least one block is not on a painted tile
+            }
+        }
+        return true; // All blocks are on valid tiles
+    }
+
 
     private void ShowPlacementBlocks()
     {
@@ -141,6 +175,11 @@ public class Building : MonoBehaviour
 
             // Instantiate OffsetBlock at the grid position
             GameObject block = Instantiate(alignmentBlock, tileCenter, Quaternion.identity);
+            if (topTile.GetTile(childCellPosition) == null)
+            {
+                SpriteRenderer sp = block.GetComponent<SpriteRenderer>();
+                sp.color = Color.red;
+            }
             placementBlocks.Add(block);
         }
     }

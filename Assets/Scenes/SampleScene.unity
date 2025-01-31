@@ -5006,7 +5006,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1462916166}
   m_HandleRect: {fileID: 1462916165}
   m_Direction: 0
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -5514,8 +5514,8 @@ GameObject:
   - component: {fileID: 1930777731}
   - component: {fileID: 1930777733}
   - component: {fileID: 1930777734}
-  - component: {fileID: 1930777736}
   - component: {fileID: 1930777735}
+  - component: {fileID: 1930777736}
   m_Layer: 0
   m_Name: Players
   m_TagString: Untagged
@@ -5675,44 +5675,34 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
---- !u!1839735485 &1930777736
-Tilemap:
+--- !u!114 &1930777736
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1930777730}
   m_Enabled: 1
-  m_Tiles: {}
-  m_AnimatedTiles: {}
-  m_TileAssetArray: []
-  m_TileSpriteArray: []
-  m_TileMatrixArray: []
-  m_TileColorArray: []
-  m_TileObjectToInstantiateArray: []
-  m_AnimationFrameRate: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Origin: {x: 0, y: 0, z: 0}
-  m_Size: {x: 0, y: 0, z: 1}
-  m_TileAnchor: {x: 0.5, y: 0.5, z: 0}
-  m_TileOrientation: 0
-  m_TileOrientationMatrix:
-    e00: 1
-    e01: 0
-    e02: 0
-    e03: 0
-    e10: 0
-    e11: 1
-    e12: 0
-    e13: 0
-    e20: 0
-    e21: 0
-    e22: 1
-    e23: 0
-    e30: 0
-    e31: 0
-    e32: 0
-    e33: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f456e8d64dbd8ec43ab3c9aca35cda4e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  topTile: {fileID: 0}
+  wallPrefab: {fileID: 9040200237879000342, guid: 9ddf5c04b0c6fa647911e55dd2103dc8, type: 3}
+  isActive: 0
+  wallSprites:
+  - {fileID: -1825360104, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: 1462339750, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: 414049465, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: -1909982727, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: 187505601, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: -1333659937, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: 516846097, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: -64509726, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: -1196001459, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: 1929876765, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: -1725074516, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
+  - {fileID: 1717221000, guid: 10a2f8e60f07b79458dc1598649f3d52, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

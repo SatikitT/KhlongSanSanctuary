@@ -16,6 +16,7 @@ public class Wall : MonoBehaviour
     private bool isPlacing = false;
     private List<GameObject> previewWalls = new List<GameObject>();
     private Dictionary<Vector3Int, GameObject> wallMap = new Dictionary<Vector3Int, GameObject>();
+    private Dictionary<Vector3Int, GameObject> previewWallMap = new Dictionary<Vector3Int, GameObject>();
 
     void Start()
     {
@@ -80,17 +81,20 @@ public class Wall : MonoBehaviour
             GameObject wall = Instantiate(wallPrefab, position, Quaternion.identity);
             SpriteRenderer sr = wall.GetComponent<SpriteRenderer>();
             sr.color = new Color(1f, 1f, 1f, 0.5f); // Transparent preview
-            UpdateWallSprite(wall, cell);
+
             previewWalls.Add(wall);
+            previewWallMap[cell] = wall;
+        }
+
+        // **Update sprites for preview walls**
+        foreach (Vector3Int cell in previewWallMap.Keys)
+        {
+            UpdateWallSprite(previewWallMap[cell], cell, previewWallMap);
         }
     }
 
     private void ConfirmWallPlacement()
     {
-        Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        mouseWorldPos.z = 0f;
-        endCell = topTile.WorldToCell(mouseWorldPos);
-
         List<Vector3Int> path = GetCellsBetween(startCell, endCell);
         foreach (Vector3Int cell in path)
         {
@@ -108,7 +112,7 @@ public class Wall : MonoBehaviour
             Vector3 position = topTile.GetCellCenterWorld(cell);
             GameObject wall = Instantiate(wallPrefab, position, Quaternion.identity);
             wallMap[cell] = wall;
-            UpdateWallSprite(wall, cell);
+            UpdateWallSprite(wall, cell, wallMap);
 
             // Update adjacent walls
             UpdateAdjacentWalls(cell);
@@ -124,19 +128,19 @@ public class Wall : MonoBehaviour
             Vector3Int neighborCell = cell + dir;
             if (wallMap.ContainsKey(neighborCell))
             {
-                UpdateWallSprite(wallMap[neighborCell], neighborCell);
+                UpdateWallSprite(wallMap[neighborCell], neighborCell, wallMap);
             }
         }
     }
 
-    private void UpdateWallSprite(GameObject wall, Vector3Int cell)
+    private void UpdateWallSprite(GameObject wall, Vector3Int cell, Dictionary<Vector3Int, GameObject> wallDictionary)
     {
         if (!wall) return;
 
-        int left = wallMap.ContainsKey(cell + Vector3Int.left) ? 1 : 0;
-        int right = wallMap.ContainsKey(cell + Vector3Int.right) ? 1 : 0;
-        int up = wallMap.ContainsKey(cell + Vector3Int.up) ? 1 : 0;
-        int down = wallMap.ContainsKey(cell + Vector3Int.down) ? 1 : 0;
+        int left = wallDictionary.ContainsKey(cell + Vector3Int.left) ? 1 : 0;
+        int right = wallDictionary.ContainsKey(cell + Vector3Int.right) ? 1 : 0;
+        int up = wallDictionary.ContainsKey(cell + Vector3Int.up) ? 1 : 0;
+        int down = wallDictionary.ContainsKey(cell + Vector3Int.down) ? 1 : 0;
 
         SpriteRenderer sr = wall.GetComponent<SpriteRenderer>();
 
@@ -178,12 +182,11 @@ public class Wall : MonoBehaviour
         if (up == 0 && right == 1 && left == 0 && down == 1) sr.sprite = wallSprites[11]; // Bottom angled right
         if (up == 0 && right == 0 && left == 1 && down == 1) { sr.sprite = wallSprites[11]; sr.flipX = true; } // Bottom angled left
 
-
+        // Handle T-Junctions
         if (up == 0 && right == 1 && left == 1 && down == 1) sr.sprite = wallSprites[6]; // Top T
-        if (up == 1 && right == 1 && left == 1 && down == 0) sr.sprite = wallSprites[7]; // Top T
-        if (up == 1 && right == 0 && left == 1 && down == 1) { sr.sprite = wallSprites[8]; sr.flipX = true; } // Top T
-        if (up == 1 && right == 1 && left == 0 && down == 1) { sr.sprite = wallSprites[8]; } // Top T
-
+        if (up == 1 && right == 1 && left == 1 && down == 0) sr.sprite = wallSprites[7]; // Bottom T
+        if (up == 1 && right == 0 && left == 1 && down == 1) { sr.sprite = wallSprites[8]; sr.flipX = true; } // Left T
+        if (up == 1 && right == 1 && left == 0 && down == 1) { sr.sprite = wallSprites[8]; } // Right T
 
         // Fully connected cross-shape
         if (left == 1 && right == 1 && up == 1 && down == 1)
@@ -193,7 +196,6 @@ public class Wall : MonoBehaviour
         }
     }
 
-
     private void ClearPreviewWalls()
     {
         foreach (GameObject wall in previewWalls)
@@ -201,6 +203,7 @@ public class Wall : MonoBehaviour
             Destroy(wall);
         }
         previewWalls.Clear();
+        previewWallMap.Clear();
     }
 
     private List<Vector3Int> GetCellsBetween(Vector3Int start, Vector3Int end)

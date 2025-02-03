@@ -105,19 +105,32 @@ public class Path : MonoBehaviour
         isPlacing = false;
     }
 
-    private void PlacePath(Vector3Int cell)
+    private bool CanPlacePath(Vector3Int cell)
     {
-        if (topTile.GetTile(cell) != null && !pathMap.ContainsKey(cell))
-        {
-            Vector3 position = topTile.GetCellCenterWorld(cell);
-            GameObject pathObj = Instantiate(pathPrefab, position, Quaternion.identity);
-            pathMap[cell] = pathObj;
-            UpdatePathSprite(pathObj, cell, pathMap);
-
-            // Update adjacent paths
-            UpdateAdjacentPaths(cell);
-        }
+        return topTile.GetTile(cell) != null && !TilemapOccupationManager.Instance.IsTileOccupied(cell);
     }
+
+    private void PlacePath(Vector3Int cell)
+{
+    if (CanPlacePath(cell))
+    {
+        Vector3 position = topTile.GetCellCenterWorld(cell);
+        GameObject pathObj = Instantiate(pathPrefab, position, Quaternion.identity);
+        pathMap[cell] = pathObj;
+        UpdatePathSprite(pathObj, cell, pathMap);
+
+        // Mark the tile as occupied
+        TilemapOccupationManager.Instance.MarkTileOccupied(cell);
+
+        // Update adjacent paths
+        UpdateAdjacentPaths(cell);
+    }
+    else
+    {
+        Debug.Log("Cannot place path here: Tile is occupied!");
+    }
+}
+
 
     private void UpdateAdjacentPaths(Vector3Int cell)
     {
@@ -144,50 +157,73 @@ public class Path : MonoBehaviour
 
         SpriteRenderer sr = path.GetComponent<SpriteRenderer>();
 
-        if (left == 1 && right == 1)
-        {
-            sr.sprite = pathSprites[2]; // Horizontal path
-        }
-        else if (up == 1 && down == 1)
-        {
-            sr.sprite = pathSprites[5]; // Vertical path
-        }
-        else if (right == 1)
-        {
-            sr.sprite = pathSprites[1]; // Path end (Right)
-            sr.flipX = false;
-        }
-        else if (left == 1)
-        {
-            sr.sprite = pathSprites[1]; // Path end (Left)
-            sr.flipX = true;
-        }
-        else if (down == 1)
-        {
-            sr.sprite = pathSprites[3]; // Path end (Bottom)
-        }
-        else if (up == 1)
-        {
-            sr.sprite = pathSprites[4]; // Path end (Top)
-        }
-        else
-        {
-            sr.sprite = pathSprites[0]; // Single path
-        }
+        int connectionCode = (up << 3) | (right << 2) | (left << 1) | down;
+        path.transform.rotation = Quaternion.Euler(0, 0, 0);
 
-        // Handle T-Junctions
-        if (up == 0 && right == 1 && left == 1 && down == 1) sr.sprite = pathSprites[6]; // Top T
-        if (up == 1 && right == 1 && left == 1 && down == 0) sr.sprite = pathSprites[7]; // Bottom T
-        if (up == 1 && right == 0 && left == 1 && down == 1) { sr.sprite = pathSprites[8]; sr.flipX = true; } // Left T
-        if (up == 1 && right == 1 && left == 0 && down == 1) { sr.sprite = pathSprites[8]; } // Right T
-
-        // Fully connected cross-shape
-        if (left == 1 && right == 1 && up == 1 && down == 1)
+        switch (connectionCode)
         {
-            sr.sprite = pathSprites[9]; // Fully connected
-            path.transform.rotation = Quaternion.identity;
+            case 0b0000: // No connections
+                sr.sprite = pathSprites[0]; // Single path
+                break;
+            case 0b0010: // Connected only to the right
+                sr.sprite = pathSprites[1];
+                path.transform.rotation = Quaternion.Euler(0, 0, -90);
+                break;
+            case 0b0100: // Connected only to the left
+                sr.sprite = pathSprites[1];
+                path.transform.rotation = Quaternion.Euler(0, 0, 90);
+                break;
+            case 0b1000: // Connected only up
+                sr.sprite = pathSprites[4];
+                break;
+            case 0b0001: // Connected only down
+                sr.sprite = pathSprites[3];
+                break;
+            case 0b0110: // Connected left and right
+                sr.sprite = pathSprites[2];
+                break;
+            case 0b1001: // Connected up and down
+                sr.sprite = pathSprites[5];
+                break;
+            //-------------------------------
+            case 0b0111: // Top T-shape
+                sr.sprite = pathSprites[6];
+                path.transform.rotation = Quaternion.Euler(0, 0, -90);
+                break;
+            case 0b1110: // Bottom T-shape
+                sr.sprite = pathSprites[7];
+                path.transform.rotation = Quaternion.Euler(0, 0, 90);
+                break;
+            case 0b1101: // Left T-shape
+                sr.sprite = pathSprites[8];
+                break;
+            case 0b1011: // Right T-shape
+                sr.sprite = pathSprites[8];
+                sr.flipX = true;
+                break;
+            //-------------------------------
+            case 0b1100: // angle up right
+                sr.sprite = pathSprites[10];
+                break;
+            case 0b0101: // Right right down
+                sr.sprite = pathSprites[12];
+                break;
+            case 0b1010: // angle up left
+                sr.sprite = pathSprites[11];
+                break;
+            case 0b0011: // angle down left
+                sr.sprite = pathSprites[13];
+                break;
+            case 0b1111: // Fully connected (Cross)
+                sr.sprite = pathSprites[9];
+                path.transform.rotation = Quaternion.identity;
+                break;
+            default:
+                sr.sprite = pathSprites[0];
+                break;
         }
     }
+
 
     private void ClearPreviewPaths()
     {

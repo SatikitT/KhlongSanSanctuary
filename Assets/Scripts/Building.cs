@@ -119,20 +119,24 @@ public class Building : MonoBehaviour
         Vector3 childLocalOffset = clickedBox.localPosition;
         Vector3 parentTargetPosition = topTile.GetCellCenterLocal(childCellPosition) - childLocalOffset;
 
-        // Check if all child blocks align with a valid tile
         if (CanPlaceBuilding(parentTargetPosition))
         {
             transform.position = parentTargetPosition;
-            Debug.Log($"Parent moved to {transform.position} to align clicked child with the grid.");
-            Debug.Log("Placed");
+            Debug.Log("Building Placed!");
+
+            // Mark all occupied tiles
+            foreach (GameObject obj in blocks)
+            {
+                Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
+                TilemapOccupationManager.Instance.MarkTileOccupied(childCellPos);
+            }
         }
         else
         {
             transform.position = previousPosition;
-            Debug.Log("Placement failed: One or more blocks are not on valid tiles.");
+            Debug.Log("Placement Failed: Tile occupied by another object.");
         }
 
-        // Re-enable colliders for all child blocks
         foreach (GameObject obj in blocks)
         {
             obj.GetComponent<Collider2D>().enabled = true;
@@ -148,17 +152,16 @@ public class Building : MonoBehaviour
     {
         foreach (GameObject obj in blocks)
         {
-            // Calculate the world position after moving the parent
             Vector3 childTargetWorldPosition = parentTargetPosition + obj.transform.localPosition;
             Vector3Int childCellPosition = topTile.LocalToCell(childTargetWorldPosition);
 
-            // Check if there is a tile at the target position
-            if (topTile.GetTile(childCellPosition) == null)
+            // Check if tile is occupied
+            if (topTile.GetTile(childCellPosition) == null || TilemapOccupationManager.Instance.IsTileOccupied(childCellPosition))
             {
-                return false; // At least one block is not on a painted tile
+                return false; // Tile is either empty or occupied by a path
             }
         }
-        return true; // All blocks are on valid tiles
+        return true;
     }
 
 

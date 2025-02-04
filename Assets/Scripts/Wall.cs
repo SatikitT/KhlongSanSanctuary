@@ -15,7 +15,7 @@ public class Wall : MonoBehaviour
     private Vector3Int endCell;
     private bool isPlacing = false;
     private List<GameObject> previewWalls = new List<GameObject>();
-    private Dictionary<Vector3Int, GameObject> wallMap = new Dictionary<Vector3Int, GameObject>();
+    public Dictionary<Vector3Int, GameObject> wallMap = new Dictionary<Vector3Int, GameObject>();
     private Dictionary<Vector3Int, GameObject> previewWallMap = new Dictionary<Vector3Int, GameObject>();
 
     void Start()
@@ -107,19 +107,28 @@ public class Wall : MonoBehaviour
 
     private void PlaceWall(Vector3Int cell)
     {
-        if (topTile.GetTile(cell) != null && !wallMap.ContainsKey(cell))
+        if (CanPlaceWall(cell))
         {
             Vector3 position = topTile.GetCellCenterWorld(cell);
             GameObject wall = Instantiate(wallPrefab, position, Quaternion.identity);
             wallMap[cell] = wall;
             UpdateWallSprite(wall, cell, wallMap);
 
-            // Update adjacent walls
+            // Mark tile as occupied
+            TilemapOccupationManager.Instance.MarkTileOccupied(cell);
+
+            // Update adjacent walls immediately
             UpdateAdjacentWalls(cell);
+        }
+        else
+        {
+            Debug.Log("Cannot place wall: Tile is occupied!");
         }
     }
 
-    private void UpdateAdjacentWalls(Vector3Int cell)
+
+
+    public void UpdateAdjacentWalls(Vector3Int cell)
     {
         Vector3Int[] directions = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right };
 
@@ -133,7 +142,15 @@ public class Wall : MonoBehaviour
         }
     }
 
-    private void UpdateWallSprite(GameObject wall, Vector3Int cell, Dictionary<Vector3Int, GameObject> wallDictionary)
+
+    private bool CanPlaceWall(Vector3Int cell)
+    {
+        return topTile.GetTile(cell) != null &&
+               !TilemapOccupationManager.Instance.IsTileOccupied(cell);
+    }
+
+
+    public void UpdateWallSprite(GameObject wall, Vector3Int cell, Dictionary<Vector3Int, GameObject> wallDictionary)
     {
         if (!wall) return;
 
@@ -223,4 +240,24 @@ public class Wall : MonoBehaviour
 
         return path;
     }
+
+    public void DestroyWall(Vector3Int cell)
+    {
+        if (wallMap.ContainsKey(cell))
+        {
+            // Free the tile
+            TilemapOccupationManager.Instance.MarkTileUnoccupied(cell);
+
+            // Destroy the wall object
+            Destroy(wallMap[cell]);
+            wallMap.Remove(cell);
+
+            Debug.Log("Wall removed at: " + cell);
+
+            // Update adjacent walls
+            UpdateAdjacentWalls(cell);
+        }
+    }
+
+
 }

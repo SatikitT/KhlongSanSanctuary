@@ -93,6 +93,8 @@ public class Building : MonoBehaviour
             foreach (GameObject obj in blocks)
             {
                 obj.GetComponent<Collider2D>().enabled = false;
+                Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
+                TilemapOccupationManager.Instance.MarkTileUnoccupied(childCellPos);
             }
 
             dragging = true;
@@ -110,6 +112,7 @@ public class Building : MonoBehaviour
 
     private void HandleMouseRelease()
     {
+
         Transform clickedBox = clickedChild.transform;
         Debug.Log($"Child {clickedChild.name} was clicked!");
 
@@ -124,7 +127,7 @@ public class Building : MonoBehaviour
             transform.position = parentTargetPosition;
             Debug.Log("Building Placed!");
 
-            // Mark all occupied tiles
+            // Mark new tiles as occupied
             foreach (GameObject obj in blocks)
             {
                 Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
@@ -133,8 +136,15 @@ public class Building : MonoBehaviour
         }
         else
         {
-            transform.position = previousPosition;
+            transform.position = previousPosition; // Reset to old position
             Debug.Log("Placement Failed: Tile occupied by another object.");
+
+            // Re-mark old position as occupied since placement failed
+            foreach (GameObject obj in blocks)
+            {
+                Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
+                TilemapOccupationManager.Instance.MarkTileOccupied(childCellPos);
+            }
         }
 
         foreach (GameObject obj in blocks)
@@ -147,6 +157,7 @@ public class Building : MonoBehaviour
 
         HidePlacementBlocks();
     }
+
 
     private bool CanPlaceBuilding(Vector3 parentTargetPosition)
     {
@@ -196,4 +207,17 @@ public class Building : MonoBehaviour
         }
         placementBlocks.Clear();
     }
+
+    public void DestroyBuilding()
+    {
+        // Free all occupied tiles
+        foreach (GameObject obj in blocks)
+        {
+            Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
+            TilemapOccupationManager.Instance.MarkTileUnoccupied(childCellPos);
+        }
+
+        Destroy(gameObject);
+    }
+
 }

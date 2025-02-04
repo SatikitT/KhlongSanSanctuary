@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -15,12 +16,14 @@ public class Path : MonoBehaviour
     private Vector3Int endCell;
     private bool isPlacing = false;
     private List<GameObject> previewPaths = new List<GameObject>();
-    private Dictionary<Vector3Int, GameObject> pathMap = new Dictionary<Vector3Int, GameObject>();
+    public Dictionary<Vector3Int, GameObject> pathMap = new Dictionary<Vector3Int, GameObject>();
     private Dictionary<Vector3Int, GameObject> previewPathMap = new Dictionary<Vector3Int, GameObject>();
 
     void Start()
     {
         topTile = GameObject.Find("Ground").GetComponent<Tilemap>();
+        GameObject newEmptyObject = new GameObject("MyEmptyGameObject");
+        pathMap.Add(new Vector3Int(0, -10, 0), newEmptyObject);
     }
 
     void Update()
@@ -111,26 +114,25 @@ public class Path : MonoBehaviour
     }
 
     private void PlacePath(Vector3Int cell)
-{
-    if (CanPlacePath(cell))
     {
-        Vector3 position = topTile.GetCellCenterWorld(cell);
-        GameObject pathObj = Instantiate(pathPrefab, position, Quaternion.identity);
-        pathMap[cell] = pathObj;
-        UpdatePathSprite(pathObj, cell, pathMap);
+        if (CanPlacePath(cell))
+        {
+            Vector3 position = topTile.GetCellCenterWorld(cell);
+            GameObject pathObj = Instantiate(pathPrefab, position, Quaternion.identity);
+            pathMap[cell] = pathObj;
+            UpdatePathSprite(pathObj, cell, pathMap);
 
-        // Mark the tile as occupied
-        TilemapOccupationManager.Instance.MarkTileOccupied(cell);
+            // Mark the tile as occupied
+            TilemapOccupationManager.Instance.MarkTileOccupied(cell);
 
-        // Update adjacent paths
-        UpdateAdjacentPaths(cell);
+            // Update adjacent paths immediately
+            UpdateAdjacentPaths(cell);
+        }
+        else
+        {
+            Debug.Log("Cannot place path here: Tile is occupied!");
+        }
     }
-    else
-    {
-        Debug.Log("Cannot place path here: Tile is occupied!");
-    }
-}
-
 
     private void UpdateAdjacentPaths(Vector3Int cell)
     {
@@ -146,7 +148,8 @@ public class Path : MonoBehaviour
         }
     }
 
-    private void UpdatePathSprite(GameObject path, Vector3Int cell, Dictionary<Vector3Int, GameObject> pathDictionary)
+
+    public void UpdatePathSprite(GameObject path, Vector3Int cell, Dictionary<Vector3Int, GameObject> pathDictionary)
     {
         if (!path) return;
 
@@ -224,7 +227,6 @@ public class Path : MonoBehaviour
         }
     }
 
-
     private void ClearPreviewPaths()
     {
         foreach (GameObject path in previewPaths)
@@ -252,4 +254,63 @@ public class Path : MonoBehaviour
 
         return path;
     }
+
+    public void DestroyPath(Vector3Int cell)
+    {
+        if (pathMap.ContainsKey(cell))
+        {
+            // Free the tile from TilemapOccupationManager
+            TilemapOccupationManager.Instance.MarkTileUnoccupied(cell);
+
+            // Remove path object
+            Destroy(pathMap[cell]);
+            pathMap.Remove(cell);
+
+            Debug.Log("Path removed at: " + cell);
+
+            // Update adjacent paths
+            UpdateAdjacentPaths(cell);
+        }
+    }
+
+    public List<Vector3Int> GetOrderedPath()
+    {
+        List<Vector3Int> orderedPath = new List<Vector3Int>();
+
+        if (pathMap.Count == 0) return orderedPath; // No path exists
+
+        // Find the starting point (assume it's the first placed tile)
+        Vector3Int startCell = pathMap.Keys.First();
+
+        // Use a queue to traverse the path from the start
+        Queue<Vector3Int> queue = new Queue<Vector3Int>();
+        HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
+
+        queue.Enqueue(startCell);
+        visited.Add(startCell);
+
+        while (queue.Count > 0)
+        {
+            Vector3Int currentCell = queue.Dequeue();
+            orderedPath.Add(currentCell);
+
+            // Check neighbors (up, down, left, right)
+            Vector3Int[] directions = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right };
+
+            foreach (Vector3Int dir in directions)
+            {
+                Vector3Int neighbor = currentCell + dir;
+
+                if (pathMap.ContainsKey(neighbor) && !visited.Contains(neighbor))
+                {
+                    queue.Enqueue(neighbor);
+                    visited.Add(neighbor);
+                }
+            }
+        }
+
+        return orderedPath;
+    }
+
+
 }

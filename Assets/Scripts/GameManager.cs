@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -7,7 +8,9 @@ public class GameManager : MonoBehaviour
 {
     public GameObject botPrefab;
     public Tilemap pathTilemap;
-    public Path pathScript;
+    private Path pathScript;
+    private Vector3Int startPoint; // Set a valid start point
+    private Vector3Int endPoint;   // Set a valid end point
 
     void Start()
     {
@@ -19,14 +22,24 @@ public class GameManager : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(3f); // Spawns a bot every 3 seconds
+            yield return new WaitForSeconds(3f);
 
-            List<Vector3Int> userPathCells = pathScript.GetOrderedPath();
-            if (userPathCells.Count == 0) continue; // No path exists, don't spawn
+            if (pathScript.pathMap.Count == 0)
+            {
+                Debug.LogWarning("No path available to follow!");
+                continue;
+            }
 
-            Vector3 spawnPosition = pathTilemap.GetCellCenterWorld(userPathCells[0]); // Start at the first path cell
+            // Choose any random start and end from the pathMap
+            Vector3Int startPoint = pathScript.pathMap.Keys.First();
+
+            List<Vector3Int> randomPath = pathScript.GetRandomPath(startPoint);
+            if (randomPath.Count == 0) continue; // No path found
+
+            Vector3 spawnPosition = pathTilemap.GetCellCenterWorld(randomPath[0]);
             BotPathFollower bot = Instantiate(botPrefab, spawnPosition, Quaternion.identity).GetComponent<BotPathFollower>();
-            bot.SetPath(userPathCells, pathTilemap);
+            bot.SetPath(randomPath, pathTilemap);
         }
     }
+
 }

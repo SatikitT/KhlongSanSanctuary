@@ -22,8 +22,7 @@ public class Path : MonoBehaviour
     void Start()
     {
         topTile = GameObject.Find("Ground").GetComponent<Tilemap>();
-        GameObject newEmptyObject = new GameObject("MyEmptyGameObject");
-        pathMap.Add(new Vector3Int(0, -10, 0), newEmptyObject);
+        pathMap.Add(new Vector3Int(0, -10, 0), null);
     }
 
     void Update()
@@ -273,44 +272,102 @@ public class Path : MonoBehaviour
         }
     }
 
-    public List<Vector3Int> GetOrderedPath()
+    public List<Vector3Int> GetPath(Vector3Int start, Vector3Int end)
     {
-        List<Vector3Int> orderedPath = new List<Vector3Int>();
+        if (!pathMap.ContainsKey(start) || !pathMap.ContainsKey(end))
+            return new List<Vector3Int>(); // No path exists
 
-        if (pathMap.Count == 0) return orderedPath; // No path exists
+        HashSet<Vector3Int> closedSet = new HashSet<Vector3Int>();
+        HashSet<Vector3Int> openSet = new HashSet<Vector3Int>() { start };
+        Dictionary<Vector3Int, Vector3Int> cameFrom = new Dictionary<Vector3Int, Vector3Int>();
+        Dictionary<Vector3Int, float> gScore = pathMap.Keys.ToDictionary(k => k, k => float.MaxValue);
+        Dictionary<Vector3Int, float> fScore = pathMap.Keys.ToDictionary(k => k, k => float.MaxValue);
 
-        // Find the starting point (assume it's the first placed tile)
-        Vector3Int startCell = pathMap.Keys.First();
+        gScore[start] = 0;
+        fScore[start] = Vector3Int.Distance(start, end);
 
-        // Use a queue to traverse the path from the start
-        Queue<Vector3Int> queue = new Queue<Vector3Int>();
-        HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
-
-        queue.Enqueue(startCell);
-        visited.Add(startCell);
-
-        while (queue.Count > 0)
+        while (openSet.Count > 0)
         {
-            Vector3Int currentCell = queue.Dequeue();
-            orderedPath.Add(currentCell);
+            Vector3Int current = openSet.OrderBy(n => fScore[n]).First();
 
-            // Check neighbors (up, down, left, right)
-            Vector3Int[] directions = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right };
+            if (current == end)
+                return ReconstructPath(cameFrom, current);
 
-            foreach (Vector3Int dir in directions)
+            openSet.Remove(current);
+            closedSet.Add(current);
+
+            foreach (Vector3Int neighbor in GetNeighbors(current))
             {
-                Vector3Int neighbor = currentCell + dir;
+                if (closedSet.Contains(neighbor)) continue;
 
-                if (pathMap.ContainsKey(neighbor) && !visited.Contains(neighbor))
-                {
-                    queue.Enqueue(neighbor);
-                    visited.Add(neighbor);
-                }
+                float tentativeGScore = gScore[current] + Vector3Int.Distance(current, neighbor);
+
+                if (!openSet.Contains(neighbor))
+                    openSet.Add(neighbor);
+
+                if (tentativeGScore >= gScore[neighbor]) continue;
+
+                cameFrom[neighbor] = current;
+                gScore[neighbor] = tentativeGScore;
+                fScore[neighbor] = gScore[neighbor] + Vector3Int.Distance(neighbor, end);
             }
         }
 
-        return orderedPath;
+        return new List<Vector3Int>(); // No path found
     }
 
+    // **?? Helper to Get Path**
+    private List<Vector3Int> ReconstructPath(Dictionary<Vector3Int, Vector3Int> cameFrom, Vector3Int current)
+    {
+        List<Vector3Int> path = new List<Vector3Int> { current };
+        while (cameFrom.ContainsKey(current))
+        {
+            current = cameFrom[current];
+            path.Add(current);
+        }
+        path.Reverse();
+        return path;
+    }
+
+    // **?? Get All Neighboring Tiles**
+    private List<Vector3Int> GetNeighbors(Vector3Int cell)
+    {
+        Vector3Int[] directions = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right };
+        return directions.Select(d => cell + d).Where(n => pathMap.ContainsKey(n)).ToList();
+    }
+
+    public List<Vector3Int> GetRandomPath(Vector3Int start)
+    {
+        if (!pathMap.ContainsKey(start))
+        {
+            Debug.LogError($"Start cell {start} is not in the pathMap!");
+            return new List<Vector3Int>();
+        }
+
+        List<Vector3Int> path = new List<Vector3Int>();
+        HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
+
+        Vector3Int current = start;
+        path.Add(current);
+        visited.Add(current);
+
+        while (true)
+        {
+            List<Vector3Int> neighbors = GetNeighbors(current);
+
+            // Remove already visited nodes to avoid loops
+            neighbors.RemoveAll(n => visited.Contains(n));
+
+            if (neighbors.Count == 0)
+                break; // No more valid paths
+
+            // Pick a random direction
+            current = neighbors[Random.Range(0, neighbors.Count)];
+            path.Add(current);
+            visited.Add(current);
+        }
+
+        return path;
+    }
 
 }

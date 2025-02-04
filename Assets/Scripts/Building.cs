@@ -19,6 +19,7 @@ public class Building : MonoBehaviour
     private GameObject clickedChild;
     private SpriteRenderer spriteRenderer;
 
+
     void Start()
     {
         blocks = new List<GameObject>();
@@ -56,57 +57,76 @@ public class Building : MonoBehaviour
         if (dragging && Input.GetMouseButtonUp(0))
         {
             HandleMouseRelease();
+            HidePlacementBlocks();
         }
 
         if (dragging)
         {
             ShowPlacementBlocks();
         }
-        else
-        {
-            HidePlacementBlocks();
-        }
     }
 
     private void DetectChildClick()
     {
+        // Check if a building is already being dragged
+        if (BuildingMover.Instance.IsDraggingBuilding() || !BuildingMover.Instance.isActive)
+        {
+            return; // Do nothing if another building is being dragged
+        }
+
         Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         mousePosition.z = 0f;
 
-        Collider2D hitCollider = Physics2D.OverlapPoint(mousePosition);
+        // Define the layers to ignore (example: ignore layer 8)
+        int ignoreLayer = 6;
+        int layerMask = ~(1 << ignoreLayer); // Invert the mask to ignore the specified layer
 
-        if (hitCollider != null && hitCollider.transform.IsChildOf(transform))
+        // Perform a raycast at the mouse position with the layer mask
+        RaycastHit2D hit = Physics2D.Raycast(mousePosition, Vector2.zero, Mathf.Infinity, layerMask);
+
+        if (hit.collider != null)
         {
-            Debug.Log($"Child {hitCollider.gameObject.name} was clicked!");
+            Debug.Log($"Child {hit.collider.gameObject.tag} was clicked!");
 
-            previousPosition = transform.position;
-
-            spriteRenderer.color = new Color(1f, 1f, 1f, 0.5f);
-
-            clickedChild = hitCollider.gameObject;
-
-            dragOffset = transform.position - mousePosition;
-
-            Debug.Log($"Drag offset calculated: {dragOffset}");
-
-            // Disable colliders for all child blocks
-            foreach (GameObject obj in blocks)
+            // Check if the clicked object is a child of this building and has the tag "Placement"
+            if (hit.collider.transform.IsChildOf(transform) && hit.collider.CompareTag("Placement"))
             {
-                obj.GetComponent<Collider2D>().enabled = false;
-                Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
-                TilemapOccupationManager.Instance.MarkTileUnoccupied(childCellPos);
-            }
+                Debug.Log($"Child {hit.collider.gameObject.name} was clicked!");
 
-            dragging = true;
+                previousPosition = transform.position;
+
+                spriteRenderer.color = new Color(1f, 1f, 1f, 0.5f);
+
+                clickedChild = hit.collider.gameObject;
+
+                dragOffset = transform.position - mousePosition;
+
+                Debug.Log($"Drag offset calculated: {dragOffset}");
+
+                // Disable colliders for all child blocks
+                foreach (GameObject obj in blocks)
+                {
+                    obj.GetComponent<Collider2D>().enabled = false;
+                    Vector3Int childCellPos = topTile.LocalToCell(obj.transform.position);
+                    TilemapOccupationManager.Instance.MarkTileUnoccupied(childCellPos);
+                }
+
+                dragging = true;
+
+                // Set the current building in BuildingMover
+                BuildingMover.Instance.SetCurrentBuilding(this);
+            }
         }
     }
+
+
+
 
     private void DragParent()
     {
         Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         mousePosition.z = 0f;
 
-        // Move the parent while maintaining the drag offset
         transform.position = mousePosition + dragOffset;
     }
 
@@ -122,10 +142,11 @@ public class Building : MonoBehaviour
         Vector3 childLocalOffset = clickedBox.localPosition;
         Vector3 parentTargetPosition = topTile.GetCellCenterLocal(childCellPosition) - childLocalOffset;
 
+
         if (CanPlaceBuilding(parentTargetPosition))
         {
             transform.position = parentTargetPosition;
-            Debug.Log("Building Placed!");
+            Debug.Log($"Building Placed! at {parentTargetPosition}");
 
             // Mark new tiles as occupied
             foreach (GameObject obj in blocks)
@@ -185,14 +206,15 @@ public class Building : MonoBehaviour
             Vector3 childWorldPosition = child.position;
             Vector3Int childCellPosition = topTile.LocalToCell(childWorldPosition);
             Vector3 tileCenter = topTile.GetCellCenterLocal(childCellPosition);
-            tileCenter = new Vector3(tileCenter.x, tileCenter.y, 1);
+            tileCenter = new Vector3(tileCenter.x, tileCenter.y, -1);
 
             // Instantiate OffsetBlock at the grid position
             GameObject block = Instantiate(alignmentBlock, tileCenter, Quaternion.identity);
-            if (topTile.GetTile(childCellPosition) == null)
+            if (topTile.GetTile(childCellPosition) == null || TilemapOccupationManager.Instance.IsTileOccupied(childCellPosition))
             {
                 SpriteRenderer sp = block.GetComponent<SpriteRenderer>();
                 sp.color = Color.red;
+                sp.sortingOrder = 100;
             }
             placementBlocks.Add(block);
         }

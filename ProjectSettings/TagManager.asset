@@ -5,14 +5,15 @@ TagManager:
   serializedVersion: 2
   tags:
   - Path
+  - Placement
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Player
   - Water
   - UI
-  - 
+  - Building
   - 
   - 
   - 

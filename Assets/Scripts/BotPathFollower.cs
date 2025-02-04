@@ -9,6 +9,13 @@ public class BotPathFollower : MonoBehaviour
     private List<Vector3> pathPositions = new List<Vector3>();
     private int currentTargetIndex = 0;
     private bool moving = false;
+    private SpriteRenderer spriteRenderer;
+
+
+    private void Start()
+    {
+        spriteRenderer = GetComponent<SpriteRenderer>();
+    }
 
     public void SetPath(List<Vector3Int> pathCells, Tilemap pathTilemap)
     {
@@ -40,10 +47,13 @@ public class BotPathFollower : MonoBehaviour
 
         // Rotate towards movement direction
         Vector3 direction = targetPosition - transform.position;
-        if (direction != Vector3.zero)
+        if (direction.x > 0)
         {
-            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-            transform.rotation = Quaternion.Euler(0, 0, angle);
+            spriteRenderer.flipX = false; // Face right
+        }
+        else if (direction.x < 0)
+        {
+            spriteRenderer.flipX = true; // Face left
         }
 
         // Check if reached the target

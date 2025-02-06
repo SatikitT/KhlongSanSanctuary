@@ -13,11 +13,11 @@ public class BuildingRemover : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            RemoveBuilding();
+            RemoveBuildingOrObject();
         }
     }
 
-    private void RemoveBuilding()
+    private void RemoveBuildingOrObject()
     {
         Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         mousePosition.z = 0f;
@@ -26,6 +26,7 @@ public class BuildingRemover : MonoBehaviour
 
         if (hitCollider != null)
         {
+            // Check if it's a building
             Building building = hitCollider.GetComponentInParent<Building>();
             if (building != null)
             {
@@ -33,6 +34,34 @@ public class BuildingRemover : MonoBehaviour
                 Debug.Log("Building Removed!");
                 return;
             }
+
+            // Check if it's a wall
+            Wall wallManager = FindObjectOfType<Wall>(); // Assuming Wall is a singleton or unique object
+            if (wallManager != null)
+            {
+                Vector3Int cell = wallManager.topTile.WorldToCell(mousePosition);
+                if (wallManager.wallMap.ContainsKey(cell))
+                {
+                    wallManager.DestroyWall(cell);
+                    Debug.Log($"Wall at {cell} Removed!");
+                    return;
+                }
+            }
+
+            // Check if it's a path
+            Path pathManager = FindObjectOfType<Path>(); // Assuming Path is a singleton or unique object
+            if (pathManager != null && !hitCollider.CompareTag("Untagged"))
+            {
+                Vector3Int cell = pathManager.topTile.WorldToCell(mousePosition);
+                if (pathManager.pathMap.ContainsKey(cell))
+                {
+                    pathManager.DestroyPath(cell);
+                    Debug.Log($"Path at {cell} Removed!");
+                    return;
+                }
+            }
+
+            Debug.Log("No removable object found.");
         }
     }
 }

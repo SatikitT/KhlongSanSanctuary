@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8868403143385005550}
   - component: {fileID: 7353105057011238273}
   - component: {fileID: 1171695174061445925}
+  - component: {fileID: 3040971891595388071}
   m_Layer: 6
   m_Name: SmallPagoda
   m_TagString: Untagged
@@ -55,6 +56,9 @@ MonoBehaviour:
   - {x: 0, y: -0.5, z: 0}
   offsetBlock: {fileID: 9040200237879000342, guid: 6c93683365f122b4b92978409c65a4d2, type: 3}
   alignmentBlock: {fileID: 9040200237879000342, guid: 1fe934be487302147bed6c981caf1ba5, type: 3}
+  price: 10
+  moneyPerPerson: 2
+  faithPerPerson: 1
 --- !u!212 &7353105057011238273
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -142,3 +146,30 @@ CapsuleCollider2D:
   m_Offset: {x: 0.0027431226, y: -0.52322674}
   m_Size: {x: 0.8755739, y: 0.58056897}
   m_Direction: 1
+--- !u!50 &3040971891595388071
+Rigidbody2D:
+  serializedVersion: 4
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6958058514062480363}
+  m_BodyType: 1
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDrag: 0
+  m_AngularDrag: 0.05
+  m_GravityScale: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 0

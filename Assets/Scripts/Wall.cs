@@ -1,7 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Tilemaps;
+using UnityEngine.U2D;
 
 public class Wall : MonoBehaviour
 {
@@ -9,7 +13,11 @@ public class Wall : MonoBehaviour
     public GameObject wallPrefab;
     public bool isActive = false; // Enables/disables wall placement
 
-    public Sprite[] wallSprites; // 12 different sprites for walls
+    public SpriteAtlas wallAtlas; // New reference for the single sprite sheet
+
+    public GameObject shopScrollView;
+
+    private List<Sprite> wallSprites = new List<Sprite>();
 
     private Vector3Int startCell;
     private Vector3Int endCell;
@@ -21,7 +29,41 @@ public class Wall : MonoBehaviour
     void Start()
     {
         topTile = GameObject.Find("Ground").GetComponent<Tilemap>();
+
+        if (wallAtlas != null)
+        {
+            LoadSpritesFromAtlas(); // Load sprites if atlas is already assigned
+        }
     }
+
+    public void LoadSpritesFromAtlas()
+    {
+        if (wallAtlas == null)
+        {
+            Debug.LogError("Wall Atlas is not assigned!");
+            return;
+        }
+
+        // Extract all sprites from the assigned atlas
+        Sprite[] sprites = new Sprite[wallAtlas.spriteCount];
+        wallAtlas.GetSprites(sprites);
+
+        // Store sprites in a list
+        wallSprites.Clear();
+        wallSprites.AddRange(sprites);
+        wallSprites = wallSprites.OrderBy(sprite => ExtractNumberFromName(sprite.name)).ToList();
+    }
+
+    public Sprite GetWallSprite(int index)
+    {
+        if (index >= 0 && index < wallSprites.Count)
+        {
+            return wallSprites[index];
+        }
+        Debug.LogWarning($"Wall sprite index {index} is out of range!");
+        return null;
+    }
+
 
     void Update()
     {
@@ -146,13 +188,14 @@ public class Wall : MonoBehaviour
     private bool CanPlaceWall(Vector3Int cell)
     {
         return topTile.GetTile(cell) != null &&
-               !TilemapOccupationManager.Instance.IsTileOccupied(cell);
+               !TilemapOccupationManager.Instance.IsTileOccupied(cell) &&
+               !IsMouseOverScrollView();
     }
 
 
     public void UpdateWallSprite(GameObject wall, Vector3Int cell, Dictionary<Vector3Int, GameObject> wallDictionary)
     {
-        if (!wall) return;
+        if (!wall || wallSprites.Count == 0) return;
 
         int left = wallDictionary.ContainsKey(cell + Vector3Int.left) ? 1 : 0;
         int right = wallDictionary.ContainsKey(cell + Vector3Int.right) ? 1 : 0;
@@ -161,57 +204,46 @@ public class Wall : MonoBehaviour
 
         SpriteRenderer sr = wall.GetComponent<SpriteRenderer>();
 
-        if (left == 1 && right == 1)
-        {
-            sr.sprite = wallSprites[2]; // Horizontal middle
-        }
-        else if (right == 1)
-        {
-            sr.sprite = wallSprites[1]; // Horizontal end (Right)
-            sr.flipX = false;
-        }
-        else if (left == 1)
-        {
-            sr.sprite = wallSprites[1]; // Horizontal end (Left)
-            sr.flipX = true;
-        }
-        else if (up == 1 && down == 1)
-        {
-            sr.sprite = wallSprites[5]; // Vertical middle
-        }
-        else if (down == 1)
-        {
-            sr.sprite = wallSprites[3]; // Vertical end (Bottom)
-        }
-        else if (up == 1)
-        {
-            sr.sprite = wallSprites[4]; // Vertical end (Top)
-            return;
-        }
-        else
-        {
-            sr.sprite = wallSprites[0]; // Single wall
-        }
+        int spriteIndex = 0; // Default to single wall
+
+        if (left == 1 && right == 1) spriteIndex = 2; // Horizontal middle
+        else if (right == 1) spriteIndex = 1; // Horizontal end (Right)
+        else if (left == 1) spriteIndex = 3; // Horizontal end (Left)
+        else if (up == 1 && down == 1) spriteIndex = 11; // Vertical middle
+        else if (down == 1) spriteIndex = 10; // Vertical end (Bottom)
+        else if (up == 1) spriteIndex = 21; // Vertical end (Top)
 
         // Handle Angled Walls
-        if (up == 1 && right == 1 && left == 0 && down == 0) sr.sprite = wallSprites[10]; // Top angled right
-        if (up == 1 && right == 0 && left == 1 && down == 0) { sr.sprite = wallSprites[10]; sr.flipX = true; } // Top angled left
-        if (up == 0 && right == 1 && left == 0 && down == 1) sr.sprite = wallSprites[11]; // Bottom angled right
-        if (up == 0 && right == 0 && left == 1 && down == 1) { sr.sprite = wallSprites[11]; sr.flipX = true; } // Bottom angled left
+        if (up == 1 && right == 1 && left == 0 && down == 0) spriteIndex = 18; // Top angled right
+        if (up == 1 && right == 0 && left == 1 && down == 0) spriteIndex = 20; // Top angled left
+        if (up == 0 && right == 1 && left == 0 && down == 1) spriteIndex = 7; // Bottom angled right
+        if (up == 0 && right == 0 && left == 1 && down == 1) spriteIndex = 9; // Bottom angled left
 
         // Handle T-Junctions
-        if (up == 0 && right == 1 && left == 1 && down == 1) sr.sprite = wallSprites[6]; // Top T
-        if (up == 1 && right == 1 && left == 1 && down == 0) sr.sprite = wallSprites[7]; // Bottom T
-        if (up == 1 && right == 0 && left == 1 && down == 1) { sr.sprite = wallSprites[8]; sr.flipX = true; } // Left T
-        if (up == 1 && right == 1 && left == 0 && down == 1) { sr.sprite = wallSprites[8]; } // Right T
+        if (up == 0 && right == 1 && left == 1 && down == 1) spriteIndex = 4; // Top T
+        if (up == 1 && right == 1 && left == 1 && down == 0) spriteIndex = 5; // Bottom T
+        if (up == 1 && right == 0 && left == 1 && down == 1) { spriteIndex = 6; sr.flipX = true;  }; // Left T
+        if (up == 1 && right == 1 && left == 0 && down == 1) spriteIndex = 6; // Right T
 
         // Fully connected cross-shape
         if (left == 1 && right == 1 && up == 1 && down == 1)
         {
-            sr.sprite = wallSprites[9]; // Fully connected
+            spriteIndex = 14; // Fully connected
             wall.transform.rotation = Quaternion.identity;
         }
+
+        // Apply the selected sprite if within range
+        if (spriteIndex < wallSprites.Count)
+        {
+            sr.sprite = wallSprites[spriteIndex];
+        }
+        else
+        {
+            Debug.LogWarning($"Sprite index {spriteIndex} is out of range!");
+        }
     }
+
+
 
     private void ClearPreviewWalls()
     {
@@ -254,10 +286,39 @@ public class Wall : MonoBehaviour
 
             Debug.Log("Wall removed at: " + cell);
 
-            // Update adjacent walls
+            // Update adjacent walls to refresh their sprites
             UpdateAdjacentWalls(cell);
         }
     }
 
+    private int ExtractNumberFromName(string name)
+    {
+        Match match = Regex.Match(name, @"\d+"); // Find number in the name
+        return match.Success ? int.Parse(match.Value) : int.MaxValue; // If no number, push to the end
+    }
+
+    bool IsMouseOverScrollView()
+    {
+        if (EventSystem.current.IsPointerOverGameObject()) // Mouse is over UI
+        {
+            // Get the UI element the mouse is hovering over
+            PointerEventData eventData = new PointerEventData(EventSystem.current)
+            {
+                position = Input.mousePosition
+            };
+
+            List<RaycastResult> results = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(eventData, results);
+
+            foreach (RaycastResult result in results)
+            {
+                if (result.gameObject == shopScrollView) // If it's the ScrollView, return true
+                {
+                    return true;
+                }
+            }
+        }
+        return false; // Mouse is not over the ScrollView
+    }
 
 }

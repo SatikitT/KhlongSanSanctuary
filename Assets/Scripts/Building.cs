@@ -11,6 +11,10 @@ public class Building : MonoBehaviour
     public GameObject offsetBlock;
     public GameObject alignmentBlock;
 
+    public int price = 0;
+    public int moneyPerPerson = 0;
+    public int faithPerPerson = 0;
+
     private List<GameObject> placementBlocks = new List<GameObject>(); // Store instantiated OffsetBlocks
     private bool dragging = false;
     private Vector3 dragOffset;

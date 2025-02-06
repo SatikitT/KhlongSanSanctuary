@@ -1,16 +1,19 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.U2D;
 
 public class Path : MonoBehaviour
 {
     public Tilemap topTile;
     public GameObject pathPrefab;
-    public bool isActive = false; // Enables/disables path placement
+    public bool isActive = false;
 
-    public Sprite[] pathSprites; // Different path sprites for various connections
+    public SpriteAtlas pathAtlas;
+    private List<Sprite> pathSprites = new List<Sprite>();
 
     private Vector3Int startCell;
     private Vector3Int endCell;
@@ -21,8 +24,38 @@ public class Path : MonoBehaviour
 
     void Start()
     {
+      
         topTile = GameObject.Find("Ground").GetComponent<Tilemap>();
-        pathMap.Add(new Vector3Int(0, -10, 0), null);
+
+        if (pathAtlas != null)
+        {
+            LoadSpritesFromAtlas();
+        }
+    }
+
+    public void LoadSpritesFromAtlas()
+    {
+        if (pathAtlas == null)
+        {
+            Debug.LogError("Path Atlas is not assigned!");
+            return;
+        }
+
+        // Extract and sort sprites from the atlas
+        Sprite[] sprites = new Sprite[pathAtlas.spriteCount];
+        pathAtlas.GetSprites(sprites);
+
+        pathSprites.Clear();
+        pathSprites.AddRange(sprites);
+        pathSprites = pathSprites.OrderBy(sprite => ExtractNumberFromName(sprite.name)).ToList();
+
+        Debug.Log($"Loaded {pathSprites.Count} path sprites.");
+    }
+
+    private int ExtractNumberFromName(string name)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(name, @"\d+");
+        return match.Success ? int.Parse(match.Value) : int.MaxValue;
     }
 
     void Update()
@@ -165,31 +198,31 @@ public class Path : MonoBehaviour
         switch (connectionCode)
         {
             case 0b0000: // No connections
-                sr.sprite = pathSprites[0]; // Single path
+                sr.sprite = pathSprites[5]; // Single path
                 break;
             case 0b0010: // Connected only to the right
-                sr.sprite = pathSprites[1];
-                path.transform.rotation = Quaternion.Euler(0, 0, -90);
+                sr.sprite = pathSprites[12];
+                path.transform.rotation = Quaternion.Euler(0, 0, 90);
                 break;
             case 0b0100: // Connected only to the left
-                sr.sprite = pathSprites[1];
+                sr.sprite = pathSprites[11];
                 path.transform.rotation = Quaternion.Euler(0, 0, 90);
                 break;
             case 0b1000: // Connected only up
-                sr.sprite = pathSprites[4];
+                sr.sprite = pathSprites[12];
                 break;
             case 0b0001: // Connected only down
-                sr.sprite = pathSprites[3];
+                sr.sprite = pathSprites[11];
                 break;
             case 0b0110: // Connected left and right
-                sr.sprite = pathSprites[2];
+                sr.sprite = pathSprites[1];
                 break;
             case 0b1001: // Connected up and down
-                sr.sprite = pathSprites[5];
+                sr.sprite = pathSprites[4];
                 break;
             //-------------------------------
             case 0b0111: // Top T-shape
-                sr.sprite = pathSprites[6];
+                sr.sprite = pathSprites[7];
                 path.transform.rotation = Quaternion.Euler(0, 0, -90);
                 break;
             case 0b1110: // Bottom T-shape
@@ -197,27 +230,27 @@ public class Path : MonoBehaviour
                 path.transform.rotation = Quaternion.Euler(0, 0, 90);
                 break;
             case 0b1101: // Left T-shape
-                sr.sprite = pathSprites[8];
+                sr.sprite = pathSprites[7];
                 break;
             case 0b1011: // Right T-shape
-                sr.sprite = pathSprites[8];
+                sr.sprite = pathSprites[7];
                 sr.flipX = true;
                 break;
             //-------------------------------
             case 0b1100: // angle up right
-                sr.sprite = pathSprites[10];
+                sr.sprite = pathSprites[8];
                 break;
             case 0b0101: // Right right down
-                sr.sprite = pathSprites[12];
+                sr.sprite = pathSprites[0];
                 break;
             case 0b1010: // angle up left
-                sr.sprite = pathSprites[11];
+                sr.sprite = pathSprites[10];
                 break;
             case 0b0011: // angle down left
-                sr.sprite = pathSprites[13];
+                sr.sprite = pathSprites[2];
                 break;
             case 0b1111: // Fully connected (Cross)
-                sr.sprite = pathSprites[9];
+                sr.sprite = pathSprites[3];
                 path.transform.rotation = Quaternion.identity;
                 break;
             default:
@@ -261,27 +294,38 @@ public class Path : MonoBehaviour
             // Free the tile from TilemapOccupationManager
             TilemapOccupationManager.Instance.MarkTileUnoccupied(cell);
 
-            // Remove path object
+            // Remove the path object
             Destroy(pathMap[cell]);
             pathMap.Remove(cell);
 
             Debug.Log("Path removed at: " + cell);
 
-            // Update adjacent paths
+            // Update adjacent paths to refresh their sprites
             UpdateAdjacentPaths(cell);
         }
     }
 
+
     public List<Vector3Int> GetPath(Vector3Int start, Vector3Int end)
     {
         if (!pathMap.ContainsKey(start) || !pathMap.ContainsKey(end))
+        {
+            Debug.LogError($"Either start {start} or end {end} is not in the pathMap!");
             return new List<Vector3Int>(); // No path exists
+        }
 
         HashSet<Vector3Int> closedSet = new HashSet<Vector3Int>();
-        HashSet<Vector3Int> openSet = new HashSet<Vector3Int>() { start };
+        HashSet<Vector3Int> openSet = new HashSet<Vector3Int> { start };
         Dictionary<Vector3Int, Vector3Int> cameFrom = new Dictionary<Vector3Int, Vector3Int>();
-        Dictionary<Vector3Int, float> gScore = pathMap.Keys.ToDictionary(k => k, k => float.MaxValue);
-        Dictionary<Vector3Int, float> fScore = pathMap.Keys.ToDictionary(k => k, k => float.MaxValue);
+
+        Dictionary<Vector3Int, float> gScore = new Dictionary<Vector3Int, float>();
+        Dictionary<Vector3Int, float> fScore = new Dictionary<Vector3Int, float>();
+
+        foreach (var key in pathMap.Keys)
+        {
+            gScore[key] = float.MaxValue;
+            fScore[key] = float.MaxValue;
+        }
 
         gScore[start] = 0;
         fScore[start] = Vector3Int.Distance(start, end);
@@ -298,14 +342,16 @@ public class Path : MonoBehaviour
 
             foreach (Vector3Int neighbor in GetNeighbors(current))
             {
-                if (closedSet.Contains(neighbor)) continue;
+                if (closedSet.Contains(neighbor))
+                    continue;
 
                 float tentativeGScore = gScore[current] + Vector3Int.Distance(current, neighbor);
 
                 if (!openSet.Contains(neighbor))
                     openSet.Add(neighbor);
 
-                if (tentativeGScore >= gScore[neighbor]) continue;
+                if (tentativeGScore >= gScore[neighbor])
+                    continue;
 
                 cameFrom[neighbor] = current;
                 gScore[neighbor] = tentativeGScore;
@@ -313,8 +359,10 @@ public class Path : MonoBehaviour
             }
         }
 
+        Debug.LogWarning("No valid path found!");
         return new List<Vector3Int>(); // No path found
     }
+
 
     // **?? Helper to Get Path**
     private List<Vector3Int> ReconstructPath(Dictionary<Vector3Int, Vector3Int> cameFrom, Vector3Int current)
@@ -333,8 +381,14 @@ public class Path : MonoBehaviour
     private List<Vector3Int> GetNeighbors(Vector3Int cell)
     {
         Vector3Int[] directions = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right };
-        return directions.Select(d => cell + d).Where(n => pathMap.ContainsKey(n)).ToList();
+
+        // Only include neighbors that exist in the pathMap
+        return directions
+            .Select(dir => cell + dir)
+            .Where(neighbor => pathMap.ContainsKey(neighbor))
+            .ToList();
     }
+
 
     public List<Vector3Int> GetRandomPath(Vector3Int start)
     {
@@ -344,30 +398,18 @@ public class Path : MonoBehaviour
             return new List<Vector3Int>();
         }
 
-        List<Vector3Int> path = new List<Vector3Int>();
-        HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
-
-        Vector3Int current = start;
-        path.Add(current);
-        visited.Add(current);
-
-        while (true)
+        // Get all endpoints except the start
+        List<Vector3Int> endpoints = pathMap.Keys.Where(cell => cell != start).ToList();
+        if (endpoints.Count == 0)
         {
-            List<Vector3Int> neighbors = GetNeighbors(current);
-
-            // Remove already visited nodes to avoid loops
-            neighbors.RemoveAll(n => visited.Contains(n));
-
-            if (neighbors.Count == 0)
-                break; // No more valid paths
-
-            // Pick a random direction
-            current = neighbors[Random.Range(0, neighbors.Count)];
-            path.Add(current);
-            visited.Add(current);
+            Debug.LogWarning("No valid endpoints available!");
+            return new List<Vector3Int>();
         }
 
-        return path;
+        // Pick a random endpoint
+        Vector3Int randomEnd = endpoints[Random.Range(0, endpoints.Count)];
+        return GetPath(start, randomEnd);
     }
+
 
 }
